@@ -75,17 +75,16 @@ loaded atlases", "Dump UI sprite usage", and honours these extra `config.json` f
 GitHub Actions builds everything on Windows (`.github/workflows/`):
 
 - `ci.yml`: every push and pull request builds the plugin and runs the tests.
-- `release.yml`: pushing a version tag publishes a GitHub Release with `hachimi_darkmode.dll`
-  attached (the user build; build the dev variant locally when you need it):
-  ```
-  git tag v1.0.0
-  git push origin v1.0.0
-  ```
-  It can also be started manually from the Actions tab; that builds the DLL as a downloadable
-  artifact without publishing a release.
+- `release.yml`: publishes a GitHub Release for the version in `darkmode/Cargo.toml`, tagged
+  `v<version>`, with `hachimi_darkmode.dll` attached (the user build; build the dev variant locally
+  when you need it).
 
-Bump `version` in `darkmode/Cargo.toml` before tagging. The rules in `tools/overrides.json` are
-embedded at build time, so rule changes ship with the next release.
+To release, bump `version` in `darkmode/Cargo.toml` and push to `main`; the workflow runs when that
+file changes. It can also be started manually from the Actions tab. If the tag for the current
+version already exists it does nothing, so a version is never published twice.
+
+The rules in `tools/overrides.json` are embedded at build time, so rule changes ship with the next
+release.
 
 ## How textures are handled
 
