@@ -24,8 +24,6 @@ static FRAME: AtomicU32 = AtomicU32::new(0);
 
 /// New textures (reloaded atlases show their original look until picked up, so keep it short).
 const TEXTURE_SCAN_INTERVAL: u32 = 15;
-/// Re-darken the cached overlays.
-const OVERLAY_REFRESH_INTERVAL: u32 = 20;
 /// Full searches (all Images, cameras, outlines). Expensive, so rare.
 const FULL_SCAN_INTERVAL: u32 = 120;
 
@@ -37,7 +35,9 @@ const BACKDROP_RAW_IMAGES: &[&str] = &["LoadingBg"];
 
 /// Texture pointers seen by the last texture scan.
 static SEEN_TEXTURES: Mutex<Option<HashSet<usize>>> = Mutex::new(None);
-/// Overlay graphics found by the last full scan (re-darkened between scans and on mesh rebuild).
+/// Addresses of overlay graphics found so far. Only ever compared, never dereferenced: an object
+/// from an earlier frame may have been destroyed and its memory reused. The mesh-rebuild hook
+/// re-verifies a hit on the (live) object it's called with before touching it.
 static OVERLAYS: Mutex<Option<HashSet<usize>>> = Mutex::new(None);
 /// Overlays already written to `overlays.txt`.
 static LOGGED_OVERLAYS: Mutex<Option<HashSet<usize>>> = Mutex::new(None);
@@ -60,8 +60,6 @@ extern "C-unwind" fn late_update_hook(this: Ptr, method: Ptr) {
             scan_cameras();
             scan_outlines();
             apply_debug_hide();
-        } else if frame % OVERLAY_REFRESH_INTERVAL == 0 {
-            refresh_overlays();
         }
     });
 }
@@ -73,12 +71,12 @@ type DoMeshGenerationFn = extern "C-unwind" fn(this: Ptr, method: Ptr);
 extern "C-unwind" fn do_mesh_generation_hook(this: Ptr, method: Ptr) {
     let orig: DoMeshGenerationFn = unsafe { std::mem::transmute(ORIG_DO_MESH_GENERATION.load(Ordering::Relaxed)) };
     if config::enabled() {
+        // `this` is alive here (Unity is rebuilding it), so it's safe to inspect.
         if is_cached_overlay(this) {
-            darken_overlay(this);
-        } else if overlay_replacement(unity::graphic_color(this)).is_some()
-            && unity::is_instance_of(this, unity().image_class)
-            && is_overlay(this)
-        {
+            if is_overlay_graphic(this) {
+                darken_overlay(this);
+            }
+        } else if overlay_replacement(unity::graphic_color(this)).is_some() && is_overlay_graphic(this) {
             // An overlay created since the last full scan.
             cache_overlay(this);
             darken_overlay(this);
@@ -193,6 +191,18 @@ pub fn is_overlay(img: Ptr) -> bool {
     unity::image_sprite(img).is_null() && is_overlay_name(&unity::object_name(img))
 }
 
+/// A white overlay Image (by name) or a backdrop RawImage (by name). Only call on live objects.
+fn is_overlay_graphic(g: Ptr) -> bool {
+    let u = unity();
+    if unity::is_instance_of(g, u.image_class) {
+        is_overlay(g)
+    } else if unity::is_instance_of(g, u.raw_image_class) {
+        BACKDROP_RAW_IMAGES.contains(&unity::object_name(g).as_str())
+    } else {
+        false
+    }
+}
+
 fn is_cached_overlay(g: Ptr) -> bool {
     OVERLAYS.lock().unwrap().as_ref().is_some_and(|s| s.contains(&(g as usize)))
 }
@@ -201,33 +211,27 @@ fn cache_overlay(g: Ptr) {
     OVERLAYS.lock().unwrap().get_or_insert_with(HashSet::new).insert(g as usize);
 }
 
-/// Full search: overlay Images (by name) and backdrop RawImages. Rebuilds the cache.
+/// Full search: overlay Images (by name) and backdrop RawImages. Darkens them right away (they're
+/// alive during this frame) and rebuilds the address cache.
 fn find_overlays() {
     let u = unity();
-    let mut found = HashSet::new();
+    let mut found = Vec::new();
     for img in unity::find_all_of_class(u.image_class) {
         if is_overlay(img) {
-            found.insert(img as usize);
+            found.push(img);
         }
     }
     for raw in unity::find_all_of_class(u.raw_image_class) {
         if BACKDROP_RAW_IMAGES.contains(&unity::object_name(raw).as_str()) {
-            found.insert(raw as usize);
+            found.push(raw);
         }
     }
-    *OVERLAYS.lock().unwrap() = Some(found);
-    refresh_overlays();
-}
-
-/// Re-darkens cached overlays (cheap: no searching).
-fn refresh_overlays() {
-    let cached: Vec<usize> = OVERLAYS.lock().unwrap().as_ref().map(|s| s.iter().copied().collect()).unwrap_or_default();
-    for g in cached {
-        let g = g as Ptr;
-        if unity::is_alive(g) && darken_overlay(g) {
+    for &g in &found {
+        if darken_overlay(g) {
             log_overlay(g);
         }
     }
+    *OVERLAYS.lock().unwrap() = Some(found.into_iter().map(|g| g as usize).collect());
 }
 
 /// Cameras that clear to solid white (e.g. `UIManager/BGCamera`). Normally everything is drawn

@@ -5,6 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Rust embeds source paths (dependencies, toolchain) in panic messages; map the user folder to `~`
+# so local builds don't contain your Windows username.
+home_win="$(cygpath -w "$HOME" 2>/dev/null || echo "$HOME")"
+export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=${home_win}=~"
+
 build() {
     local name="$1"; shift
     cargo build --release "$@"
