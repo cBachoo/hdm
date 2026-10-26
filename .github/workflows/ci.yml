@@ -1,0 +1,30 @@
+name: CI
+
+# Builds the plugin and runs the tests on every push and pull request. The Rust vs Python
+# parity tests need local game dumps (research/, never committed), so they skip themselves here.
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: darkmode
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: darkmode
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Test
+        run: cargo test --release

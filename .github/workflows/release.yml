@@ -1,0 +1,43 @@
+name: Release
+
+# Push a version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`) to build the plugin and
+# publish a GitHub Release with the DLL attached. Can also be run manually from the Actions tab,
+# which builds and uploads the DLL as a workflow artifact without publishing a release.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: darkmode
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: darkmode
+
+      - name: Build
+        run: cargo build --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hachimi_darkmode
+          path: darkmode/target/release/hachimi_darkmode.dll
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: darkmode/target/release/hachimi_darkmode.dll
+          generate_release_notes: true

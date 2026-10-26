@@ -16,7 +16,9 @@ Download and install Hachimi Edge from:
 
 2. Download `hachimi_darkmode.dll`
 
-Grab the latest `hachimi_darkmode.dll` from the releases page of this repository.
+Grab the latest `hachimi_darkmode.dll` from:
+
+`https://github.com/cBachoo/hdm/releases/latest`
 
 Place it in your game folder root (next to `UmamusumePrettyDerby.exe`).
 
@@ -76,7 +78,7 @@ dark UI.
 
 The plugin ships with built-in rules for which textures get darkened and how. To customise them,
 put your own `overrides.json` in `hachimi/darkmode/`; it replaces the built-in rules. Start from
-[`tools/overrides.json`](tools/overrides.json) in this repository; the format is described in
+[`tools/overrides.json`](https://github.com/cBachoo/hdm/blob/main/tools/overrides.json); the format is described in
 [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Uninstalling
