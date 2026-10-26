@@ -74,7 +74,6 @@ loaded atlases", "Dump UI sprite usage", and honours these extra `config.json` f
 
 GitHub Actions builds everything on Windows (`.github/workflows/`):
 
-- `ci.yml`: every push and pull request builds the plugin and runs the tests.
 - `release.yml`: publishes a GitHub Release for the version in `darkmode/Cargo.toml`, tagged
   `v<version>`, with `hachimi_darkmode.dll` attached (the user build; build the dev variant locally
   when you need it).
