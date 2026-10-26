@@ -1,0 +1,49 @@
+{
+  "fallback": {
+    "include_prefixes": ["utx_btn_", "utx_frm_", "utx_bg_", "utx_base_", "utx_tab_", "utx_txt_base_", "utx_sld_", "utx_gau_", "utx_carousel_"],
+    "exclude_contains": ["signinwith", "logo", "loadingtitle", "_eff_", "gacha", "_chara", "campaign", "ribbon"]
+  },
+  "levels": {
+    "background": [12, 13, 17, 0.08],
+    "panel": [18, 19, 25, 0.13],
+    "surface": [24, 26, 34, 0.24],
+    "raised": [32, 35, 46, 0.33]
+  },
+  "sprites": {
+    "vertical_bg_6001_*": { "level": "background" },
+    "vertical_bg_*": { "skip": true },
+    "utx_bg_*": { "level": "background" },
+    "utx_frm_dialog_bg_*": { "level": "panel" },
+    "PreIn/utx_frm_base_00_sl": { "level": "panel" },
+    "PreIn/utx_frm_bg_00_sl": { "level": "panel" },
+    "utx_frm_underwindow_*": { "level": "panel" },
+    "utx_frm_factor_*": { "level": "raised" },
+    "utx_btn_info_*": { "level": "surface", "light_glyphs": true },
+    "utx_btn_favorite_*": { "skip": true },
+    "utx_btn_skill_base_*": { "mode": "white_swap", "level": "raised" },
+    "utx_frm_skill_base_*": { "mode": "white_swap", "level": "raised" },
+    "utx_frm_stronginfo_02_sl": { "skip": true },
+    "utx_frm_stronginfo_*": { "mode": "white_swap", "level": "raised" },
+    "Home/utx_btn_traning_00": { "skip": true },
+    "Home/utx_btn_traning_01": { "skip": true },
+    "PreIn/utx_btn_advice_00": { "skip": true },
+    "TeamStadium/utx_btn_teamstadium_race_00": { "mode": "card", "direction": "bottom", "panel_start": 175, "blend": 0.25, "protect_outlined": true },
+    "TeamStadium/utx_btn_teamstadium_race_01": { "mode": "card", "direction": "right" },
+
+    "textures/utx_frm_whiteboard_shadow_00_sl": { "level": "background" },
+    "textures/utx_frm_white00": { "level": "background" },
+    "textures/utx_frm_greenline_00": { "skip": true },
+    "textures/utx_frm_whiteboard_00_sl": { "skip": true }
+  },
+  "textures": {
+    "utx_btn_home_story_*": { "mode": "card" },
+    "utx_btn_home_umamusume_*": { "mode": "card" },
+    "utx_btn_home_race_02": { "mode": "card", "direction": "bottom", "protect_outlined": true },
+    "utx_btn_home_race_08": { "mode": "card", "direction": "bottom", "protect_outlined": true },
+    "utx_btn_home_race_*": { "mode": "card" },
+    "utx_btn_storyevent_top_00_*": { "mode": "card", "direction": "bottom", "protect_outlined": true },
+    "utx_btn_storyevent_top_01*": { "mode": "card", "direction": "bottom" },
+    "utx_btn_storyevent_top_*": { "mode": "card", "direction": "right" },
+    "tx_uTex_fl_footer_btn00_0_C": { "mode": "regions" }
+  }
+}

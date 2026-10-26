@@ -1,0 +1,23 @@
+[package]
+name = "hachimi_darkmode"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+png = "0.17"
+
+[features]
+# Development build: asset logging, texture/UI/method dumps, debug_hide, extra menu buttons.
+# `cargo build --release` = user build, `cargo build --release --features dev` = dev build.
+dev = []
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = false
+debug = "line-tables-only"

@@ -1,0 +1,17 @@
+# Local notes
+todo.md
+
+# Game assets and anything derived from them: never commit
+research/
+screenshots/
+utx_btn_menu_01.png
+tools/manual/*
+!tools/manual/.gitkeep
+
+# Third-party source checkout
+temp/
+
+# Build output
+darkmode/target/
+darkmode/dist/
+tools/__pycache__/
