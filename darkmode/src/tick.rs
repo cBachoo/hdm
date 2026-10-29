@@ -8,7 +8,7 @@
 //! Everything here runs on a budget: full searches over all objects happen rarely, and in between
 //! only cached objects are touched.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -33,6 +33,17 @@ pub const OVERLAY_DARK: (f32, f32, f32) = (0.06, 0.065, 0.08);
 /// background (SystemCanvas/LoadingCanvas/BackObj/Loading/Bg/LoadingBg).
 const BACKDROP_RAW_IMAGES: &[&str] = &["LoadingBg"];
 
+/// Sprite-less Images that draw a plain white quad on screens that were white anyway (so it never
+/// showed), as "Parent/Self" names. Hidden through their CanvasRenderer alpha only while they have
+/// no sprite; the alpha is restored once a sprite is assigned.
+/// - `RaceResult/Result`: team trials results, white bar before its WIN/LOSE sprite is set.
+/// - `icon_badge_move00/utx_ico_badge_03`: team trials results, square behind the reward box.
+const BLANK_IMAGES: &[&str] = &["RaceResult/Result", "icon_badge_move00/utx_ico_badge_03"];
+
+/// Blank Images currently hidden -> their original CanvasRenderer colour. Keys are compare-only,
+/// like `OVERLAYS`.
+static BLANKS: Mutex<Option<HashMap<usize, Color>>> = Mutex::new(None);
+
 /// Texture pointers seen by the last texture scan.
 static SEEN_TEXTURES: Mutex<Option<HashSet<usize>>> = Mutex::new(None);
 /// Addresses of overlay graphics found so far. Only ever compared, never dereferenced: an object
@@ -55,11 +66,13 @@ extern "C-unwind" fn late_update_hook(this: Ptr, method: Ptr) {
         if frame % TEXTURE_SCAN_INTERVAL == 0 {
             scan_textures();
         }
-        if frame % FULL_SCAN_INTERVAL == 0 {
-            find_overlays();
-            scan_cameras();
-            scan_outlines();
-            apply_debug_hide();
+        // Full scans each search every loaded object of a type; spread them over different frames.
+        match frame % FULL_SCAN_INTERVAL {
+            0 => find_overlays(),
+            40 => scan_cameras(),
+            80 => scan_outlines(),
+            100 if cfg!(feature = "dev") => apply_debug_hide(),
+            _ => {}
         }
     });
 }
@@ -76,10 +89,13 @@ extern "C-unwind" fn do_mesh_generation_hook(this: Ptr, method: Ptr) {
             if is_overlay_graphic(this) {
                 darken_overlay(this);
             }
-        } else if overlay_replacement(unity::graphic_color(this)).is_some() && is_overlay_graphic(this) {
-            // An overlay created since the last full scan.
+        } else if is_white(unity::graphic_color(this)) && is_overlay_graphic(this) {
+            // An overlay created since the last full scan. Alpha is ignored: fades start at 0 and
+            // may then be animated through the CanvasRenderer without another rebuild.
             cache_overlay(this);
             darken_overlay(this);
+        } else {
+            update_blank_image(this);
         }
     }
     orig(this, method);
@@ -106,7 +122,8 @@ fn is_ui_texture_name(name: &str) -> bool {
 
 /// Handles textures that appeared since the last scan. Names are only read for new objects.
 fn scan_textures() {
-    let textures = unity::all_texture2ds();
+    // Liveness is checked only for new textures (the ones touched below), not all of them.
+    let textures = unity::all_texture2ds_unchecked();
     let mut new = Vec::new();
     {
         let mut seen = SEEN_TEXTURES.lock().unwrap();
@@ -122,6 +139,9 @@ fn scan_textures() {
 
     let mut new_atlases = Vec::new();
     for tex in new {
+        if !unity::is_alive(tex) {
+            continue;
+        }
         let name = unity::object_name(tex);
         if name.ends_with(textures::PATCHED_MARK) {
             continue;
@@ -167,9 +187,13 @@ pub fn darken_overlay(g: Ptr) -> bool {
     changed
 }
 
+fn is_white(c: Color) -> bool {
+    c.r >= 0.9 && c.g >= 0.9 && c.b >= 0.9
+}
+
 /// Dark colour for a white (or near-white) colour, keeping alpha. `None` if not white.
 pub fn overlay_replacement(c: Color) -> Option<Color> {
-    if c.r >= 0.9 && c.g >= 0.9 && c.b >= 0.9 && c.a > 0.0 {
+    if is_white(c) && c.a > 0.0 {
         let (r, g, b) = OVERLAY_DARK;
         Some(Color { r, g, b, a: c.a })
     } else {
@@ -201,6 +225,40 @@ fn is_overlay_graphic(g: Ptr) -> bool {
     } else {
         false
     }
+}
+
+/// See `BLANK_IMAGES`. `g` must be alive.
+fn update_blank_image(g: Ptr) {
+    if !is_white(unity::graphic_color(g)) || !unity::is_instance_of(g, unity().image_class) {
+        return;
+    }
+    let blank = unity::image_sprite(g).is_null();
+    let key = g as usize;
+    let original = BLANKS.lock().unwrap().as_ref().and_then(|m| m.get(&key).copied());
+    match (blank, original) {
+        (true, None) if is_blank_image_name(g) => {
+            let Some(c) = unity::canvas_renderer_color(g) else { return };
+            unity::set_canvas_renderer_color(g, Color { a: 0.0, ..c });
+            BLANKS.lock().unwrap().get_or_insert_with(HashMap::new).insert(key, c);
+        }
+        (true, Some(c)) => unity::set_canvas_renderer_color(g, Color { a: 0.0, ..c }),
+        (false, Some(c)) => {
+            unity::set_canvas_renderer_color(g, c);
+            if let Some(m) = BLANKS.lock().unwrap().as_mut() {
+                m.remove(&key);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_blank_image_name(g: Ptr) -> bool {
+    let name = unity::object_name(g);
+    if !BLANK_IMAGES.iter().any(|n| n.rsplit('/').next() == Some(name.as_str())) {
+        return false;
+    }
+    let path = unity::hierarchy_path(g, 2);
+    BLANK_IMAGES.iter().any(|n| path == *n || path.ends_with(&format!("/{n}")))
 }
 
 fn is_cached_overlay(g: Ptr) -> bool {
@@ -279,6 +337,9 @@ fn apply_debug_hide() {
 
 /// Records each darkened overlay once in `overlays.txt`.
 pub fn log_overlay(g: Ptr) {
+    if !cfg!(feature = "dev") {
+        return;
+    }
     if !LOGGED_OVERLAYS.lock().unwrap().get_or_insert_with(HashSet::new).insert(g as usize) {
         return;
     }

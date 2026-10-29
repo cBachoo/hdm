@@ -501,14 +501,19 @@ pub fn atlas_sprites(atlas: Ptr) -> Vec<Ptr> {
 /// whose native side is already destroyed (calling into those throws managed exceptions, which
 /// abort the process when they unwind through Rust). Main thread only.
 pub fn find_all_of_class(class: usize) -> Vec<Ptr> {
+    let mut objs = find_all_of_class_unchecked(class);
+    objs.retain(|&o| is_alive(o));
+    objs
+}
+
+/// `find_all_of_class` without the liveness filter: check `is_alive` before touching an object.
+fn find_all_of_class_unchecked(class: usize) -> Vec<Ptr> {
     let u = unity();
     let ty = if class == u.texture2d_class { u.texture2d_type_object } else { type_object(class) };
     if u.resources_find_objects_of_type_all == 0 || ty == 0 {
         return Vec::new();
     }
-    let mut objs = object_array(call!(u.resources_find_objects_of_type_all, fn(Ptr, Ptr) -> Ptr, ty as Ptr, NULL_MI));
-    objs.retain(|&o| is_alive(o));
-    objs
+    object_array(call!(u.resources_find_objects_of_type_all, fn(Ptr, Ptr) -> Ptr, ty as Ptr, NULL_MI))
 }
 
 pub fn is_alive(obj: Ptr) -> bool {
@@ -524,6 +529,11 @@ pub fn is_alive(obj: Ptr) -> bool {
 
 pub fn all_texture2ds() -> Vec<Ptr> {
     find_all_of_class(unity().texture2d_class)
+}
+
+/// All Texture2Ds, not filtered by `is_alive` (see `find_all_of_class_unchecked`).
+pub fn all_texture2ds_unchecked() -> Vec<Ptr> {
+    find_all_of_class_unchecked(unity().texture2d_class)
 }
 
 pub fn image_sprite(image: Ptr) -> Ptr {

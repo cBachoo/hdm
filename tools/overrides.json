@@ -24,6 +24,8 @@
     "utx_frm_skill_base_*": { "mode": "white_swap", "level": "raised" },
     "utx_frm_stronginfo_02_sl": { "skip": true },
     "utx_frm_stronginfo_*": { "mode": "white_swap", "level": "raised" },
+    "Single/utx_frm_status_chara_base_00_sl": { "level": "surface" },
+    "Single/utx_frm_route_chara_base_00_sl": { "level": "surface" },
     "Home/utx_btn_traning_00": { "skip": true },
     "Home/utx_btn_traning_01": { "skip": true },
     "PreIn/utx_btn_advice_00": { "skip": true },
